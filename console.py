@@ -2,6 +2,7 @@
 """ Console Module """
 import cmd
 import sys
+import shlex
 from models.base_model import BaseModel
 from models.__init__ import storage
 from models.user import User
@@ -73,7 +74,8 @@ class HBNBCommand(cmd.Cmd):
                 pline = pline[2].strip()  # pline is now str
                 if pline:
                     # check for *args or **kwargs
-                    if pline[0] == '{' and pline[-1] == '}' and type(eval(pline)) is dict:
+                    if (pline[0] == '{' and pline[-1] == '}'
+                            and type(eval(pline)) is dict):
                         _args = pline
                     else:
                         _args = pline.replace(',', '')
@@ -113,54 +115,64 @@ class HBNBCommand(cmd.Cmd):
         pass
 
     def do_create(self, args):
-        """Creates a new instance of BaseModel """
+        """Create an object of any class"""
+        if not args:
+            print("** class name missing **")
+            return
+
         try:
-            # Check if class name is provided
-            if not args:
-                raise SyntaxError("Class name missing")
+            args = shlex.split(args)
+            class_name = args[0]
 
-            # Split the arguments into class name and parameters
-            params = args.split()
-            class_name = params[0]
+            if class_name not in HBNBCommand.classes:
+                raise NameError("** class doesn't exist **")
 
-            # Check if the class exists in the dictionary
-            if class_name not in self.classes:
-                raise NameError("Class doesn't exist")
+            new_instance = eval(class_name)()
 
-            # Remove class_name from params
-            params = params[1:]
+            for arg in args[1:]:
+                try:
+                    key, value = arg.split("=")
+                    key = key.strip()
+                    value = value.replace("_", " ").strip()
 
-            # Create an instance of the specified class
-            obj = self.classes[class_name]()
+                    if hasattr(new_instance, key):
+                        try:
+                            setattr(new_instance, key, eval(value))
+                        except:
+                            setattr(new_instance, key, value)
 
-            # Iterate through parameters and set attributes dynamically
-            for param in params:
-                key, value = param.split("=")
-                value = eval(value)
-                
-                # Handle string values with underscores
-                if isinstance(value, str):
-                    value = value.replace("_", " ")
+                except (ValueError, IndexError):
+                    pass
 
-                setattr(obj, key, value)
+            new_instance.save()
+            print(new_instance.id)
 
-            # Set 'created_at' and 'updated_at' if not provided
-            if not hasattr(obj, 'created_at'):
-                obj.created_at = datetime.now()
-
-            if not hasattr(obj, 'updated_at'):
-                obj.updated_at = datetime.now()
-
-            # Save the object to storage
-            obj.save()
-            print(obj.id)
-
-        except SyntaxError as e:
-            print(f"Error: {e}")
         except NameError as e:
-            print(f"Error: {e}")
-        except Exception as e:
-            print(f"Error: {e}")
+            print(e)
+
+    def do_all(self, line):
+        """Prints string representation of all instances"""
+        objects = storage.all()
+        my_list = []
+
+        if not line:
+            my_list = [str(obj) for obj in objects.values()]
+            print(my_list)
+            return
+
+        try:
+            class_name = line.split(" ")[0]
+            if class_name not in type(self).classes:
+                raise NameError("** class doesn't exist **")
+
+            my_list = [
+                str(obj) for key, obj in objects.items()
+                if key.startswith(class_name + ".")
+            ]
+            print(my_list)
+
+        except NameError as e:
+            print(e)
 
     def help_create(self):
         """ Help information for the create method """
@@ -232,24 +244,6 @@ class HBNBCommand(cmd.Cmd):
         """ Help information for the destroy command """
         print("Destroys an individual instance of a class")
         print("[Usage]: destroy <className> <objectId>\n")
-
-    def do_all(self, args):
-        """ Shows all objects, or all objects of a class"""
-        print_list = []
-
-        if args:
-            args = args.split(' ')[0]  # remove possible trailing args
-            if args not in HBNBCommand.classes:
-                print("** class doesn't exist **")
-                return
-            for k, v in storage._FileStorage__objects.items():
-                if k.split('.')[0] == args:
-                    print_list.append(str(v))
-        else:
-            for k, v in storage._FileStorage__objects.items():
-                print_list.append(str(v))
-
-        print(print_list)
 
     def help_all(self):
         """ Help information for the all command """
@@ -355,6 +349,7 @@ class HBNBCommand(cmd.Cmd):
         """ Help information for the update class """
         print("Updates an object with new information")
         print("Usage: update <className> <id> <attName> <attVal>\n")
+
 
 if __name__ == "__main__":
     HBNBCommand().cmdloop()

@@ -5,7 +5,7 @@ Deploy static
 
 from fabric.api import put, run, env
 
-env.hosts = ['100.25.144.97', '	52.86.103.75']
+env.hosts = ['100.26.227.175', '54.166.43.77']
 
 
 def do_deploy(archive_path):

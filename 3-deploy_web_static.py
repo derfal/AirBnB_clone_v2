@@ -6,7 +6,7 @@ Pack static content and deploy on servers
 import time
 from fabric.api import local, run, put, env
 
-env.hosts = ['100.25.144.97', '52.86.103.75']
+env.hosts = ['100.26.227.175', '54.166.43.77']
 
 
 def do_pack():
